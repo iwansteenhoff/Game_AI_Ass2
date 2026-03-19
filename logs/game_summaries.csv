@@ -1,0 +1,2 @@
+game_id,winner,placement,snake_id,snake_name,turns_survived,start_length,max_length,final_length,final_health,alive_at_end,survival_score,growth_score,performance_score
+97c5ec70-3180-4b05-a9b6-c5fea5052a9d,,1,96dab6c5-7789-4ce3-bffb-fbd613ae4792,Snake1,8,3,3,3,93,0,0.8,0.0,0.64
