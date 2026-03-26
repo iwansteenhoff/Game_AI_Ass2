@@ -1,3 +1,13 @@
 *.DS_Store
 *.pyc
 __pycache__/
+# VS Code settings
+.vscode/
+
+# Logs
+logs/
+*.csv
+game.json
+
+# Downloads / binaries
+*.tar.gz
