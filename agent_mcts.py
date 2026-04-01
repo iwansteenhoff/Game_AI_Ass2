@@ -27,21 +27,12 @@ class Node:
         self.visits = 0
         self.value = 0.0
         
-        self.untried_moves = ["up", "down", "left", "right"]
-
-
-
-
-
-
-
+        self.untried_moves = get_legal_moves(game_state, game_state["you"])
 
 
     def is_fully_expanded(self):
         return len(self.untried_moves) == 0
     
-
-
 
     def best_child(self, exploration_weight=1.41):
 
@@ -51,7 +42,7 @@ class Node:
         for child in self.children:
 
             if child.visits == 0:
-                continue
+                return child
                 
             exploit = child.value / child.visits
 
@@ -68,43 +59,196 @@ class Node:
         return best_node
 
 def simulate_next_state(current_state: dict, move: str) -> dict:
-             #future board state
+    import copy
+    import random
 
     mock_state = copy.deepcopy(current_state)
-    my_snake = mock_state["you"]
-    my_head = my_snake["body"][0]
 
-
-    next_head = {"x": my_head["x"], "y": my_head["y"]}
-    if move == "up":
-        next_head["y"] += 1
-    elif move == "down":
-        next_head["y"] -= 1
-    elif move == "left":
-        next_head["x"] -= 1
-    elif move == "right":
-        next_head["x"] += 1
-
-
-
+    snakes = mock_state["board"]["snakes"]
     food_list = mock_state["board"]["food"]
-    
-    ate_food = False
+    hazards = mock_state["board"].get("hazards", [])
+    board_width = mock_state["board"]["width"]
+    board_height = mock_state["board"]["height"]
 
+    def next_head_from_move(head: dict, move: str) -> dict:
+        new_head = {"x": head["x"], "y": head["y"]}
+        if move == "up":
+            new_head["y"] += 1
+        elif move == "down":
+            new_head["y"] -= 1
+        elif move == "left":
+            new_head["x"] -= 1
+        elif move == "right":
+            new_head["x"] += 1
+        return new_head
 
-    if next_head in food_list:
-        ate_food = True
-        food_list.remove(next_head)
+    # Step 1: choose one move for every snake
+    chosen_moves = {}
+    planned_heads = {}
 
-    my_snake["body"].insert(0, next_head)
+    my_id = mock_state["you"]["id"]
 
-    if ate_food:
-        my_snake["health"] = 100
-        my_snake["length"] += 1
+    for snake in snakes:
+        snake_id = snake["id"]
+        head = snake["body"][0]
+
+        if snake_id == my_id:
+            chosen_move = move
+        else:
+            legal_moves = get_legal_moves(mock_state, snake)
+            if legal_moves:
+                chosen_move = random.choice(legal_moves)
+            else:
+                chosen_move = None
+
+        chosen_moves[snake_id] = chosen_move
+
+        if chosen_move is None:
+            planned_heads[snake_id] = None
+        else:
+            planned_heads[snake_id] = next_head_from_move(head, chosen_move)
+
+    # Step 2: determine which snakes eat food
+    ate_food = {}
+    for snake in snakes:
+        snake_id = snake["id"]
+        next_head = planned_heads[snake_id]
+        ate_food[snake_id] = (next_head is not None and next_head in food_list)
+
+    # Step 3: build body-occupancy map for collision checks
+    # Tail cell is removed from the blocking set if that snake does not eat,
+    # because then the tail moves away this turn.
+    occupied_cells = set()
+
+    for snake in snakes:
+        body = snake["body"]
+        snake_id = snake["id"]
+
+        if len(body) == 0:
+            continue
+
+        if ate_food[snake_id]:
+            blocking_body = body[:]      # full body blocks if snake grows
+        else:
+            blocking_body = body[:-1]    # tail moves away if no food eaten
+
+        for cell in blocking_body:
+            occupied_cells.add((cell["x"], cell["y"]))
+
+    # Step 4: mark snakes dead from wall/body/health/no-move
+    dead_snake_ids = set()
+
+    for snake in snakes:
+        snake_id = snake["id"]
+        next_head = planned_heads[snake_id]
+
+        if next_head is None:
+            dead_snake_ids.add(snake_id)
+            continue
+
+        # wall collision
+        if next_head["x"] < 0 or next_head["x"] >= board_width:
+            dead_snake_ids.add(snake_id)
+            continue
+        if next_head["y"] < 0 or next_head["y"] >= board_height:
+            dead_snake_ids.add(snake_id)
+            continue
+
+        # body collision
+        if (next_head["x"], next_head["y"]) in occupied_cells:
+            dead_snake_ids.add(snake_id)
+            continue
+
+        # health after move
+        new_health = snake["health"] - 1
+        if next_head in hazards:
+            new_health -= 14  
+        if ate_food[snake_id]:
+            new_health = 100
+
+        if new_health <= 0:
+            dead_snake_ids.add(snake_id)
+
+    # Step 5: resolve head-to-head collisions
+    head_positions = {}
+    for snake in snakes:
+        snake_id = snake["id"]
+        if snake_id in dead_snake_ids:
+            continue
+
+        next_head = planned_heads[snake_id]
+        pos = (next_head["x"], next_head["y"])
+        head_positions.setdefault(pos, []).append(snake)
+
+    for pos, snakes_on_pos in head_positions.items():
+        if len(snakes_on_pos) <= 1:
+            continue
+
+        max_length = max(s["length"] for s in snakes_on_pos)
+        winners = [s for s in snakes_on_pos if s["length"] == max_length]
+
+        if len(winners) > 1:
+            # equal length head-to-head: all die
+            for s in snakes_on_pos:
+                dead_snake_ids.add(s["id"])
+        else:
+            winner_id = winners[0]["id"]
+            for s in snakes_on_pos:
+                if s["id"] != winner_id:
+                    dead_snake_ids.add(s["id"])
+
+    # Step 6: apply updates to surviving snakes
+    surviving_snakes = []
+
+    consumed_food_positions = set()
+
+    for snake in snakes:
+        snake_id = snake["id"]
+
+        if snake_id in dead_snake_ids:
+            continue
+
+        next_head = planned_heads[snake_id]
+        did_eat = ate_food[snake_id]
+
+        snake["body"].insert(0, next_head)
+
+        if did_eat:
+            snake["health"] = 100
+            snake["length"] += 1
+            consumed_food_positions.add((next_head["x"], next_head["y"]))
+        else:
+            snake["body"].pop()
+            snake["health"] -= 1
+            if next_head in hazards:
+                snake["health"] -= 14
+
+        surviving_snakes.append(snake)
+
+    # Step 7: remove eaten food
+    mock_state["board"]["food"] = [
+        food for food in food_list
+        if (food["x"], food["y"]) not in consumed_food_positions
+    ]
+
+    # Step 8: write surviving snakes back to board
+    mock_state["board"]["snakes"] = surviving_snakes
+
+    # Step 9: update mock_state["you"]
+    updated_you = None
+    for snake in surviving_snakes:
+        if snake["id"] == my_id:
+            updated_you = snake
+            break
+
+    if updated_you is None:
+        # Keep a minimal dead representation so evaluate_board can detect death
+        dead_you = copy.deepcopy(mock_state["you"])
+        dead_you["health"] = 0
+        mock_state["you"] = dead_you
     else:
-        my_snake["health"] -= 1
-        my_snake["body"].pop()
-    
+        mock_state["you"] = updated_you
+
     return mock_state
 
 
@@ -136,10 +280,6 @@ def get_mcts_move(game_state: dict, timeout_ms: float = 750.0) -> str:
             current_node.children.append(child_node)
             current_node = child_node
 
-            
-
-        
-        
                     # Simulation
     
     
@@ -148,14 +288,26 @@ def get_mcts_move(game_state: dict, timeout_ms: float = 750.0) -> str:
         rollout_d = 10
 
         for _ in range(rollout_d):
-            
             my_snake = rollout_state.get("you")
 
             if my_snake is None or my_snake.get("health",0) <=0:
                 break
+            
+            legal_moves = get_legal_moves(rollout_state, rollout_state["you"])
+            if not legal_moves:
+                break
 
-            random_move = random.choice(["up", "down", "left", "right"])
-            rollout_state = simulate_next_state(rollout_state, random_move)
+            best_rollout_move = None
+            best_rollout_score = -float("inf")
+
+            for move in legal_moves:
+                next_state = simulate_next_state(rollout_state, move)
+                score = evaluate_board(next_state)
+                if score > best_rollout_score:
+                    best_rollout_score = score
+                    best_rollout_move = move
+
+            rollout_state = simulate_next_state(rollout_state, best_rollout_move)
 
         final_score = evaluate_board(rollout_state)
 
@@ -292,101 +444,150 @@ def evaluate_board(game_state: dict) -> float:
     
     return score
 
+def get_legal_moves(game_state: dict, snake: dict) -> list[str]:
+    head = snake["body"][0]
+    body = snake["body"]
+
+    board_width = game_state["board"]["width"]
+    board_height = game_state["board"]["height"]
+
+    legal_moves = []
+
+    directions = {
+        "up":    {"x": head["x"],     "y": head["y"] + 1},
+        "down":  {"x": head["x"],     "y": head["y"] - 1},
+        "left":  {"x": head["x"] - 1, "y": head["y"]},
+        "right": {"x": head["x"] + 1, "y": head["y"]},
+    }
+
+    for move, next_head in directions.items():
+
+        # 1. Out of bounds
+        if next_head["x"] < 0 or next_head["x"] >= board_width:
+            continue
+        if next_head["y"] < 0 or next_head["y"] >= board_height:
+            continue
+
+        if next_head in body[:-1]:  
+            continue
+
+        collision = False
+        for other_snake in game_state["board"]["snakes"]:
+            if other_snake["id"] == snake["id"]:
+                continue
+
+            other_head = other_snake["body"][0]
+
+            # Manhattan distance 1 = possible head-to-head
+            if abs(next_head["x"] - other_head["x"]) + abs(next_head["y"] - other_head["y"]) == 1:
+                if other_snake["length"] >= snake["length"]:
+                    collision = True
+                    break
+
+        if collision:
+            continue
+
+        legal_moves.append(move)
+
+    return legal_moves
+
 
 def move(game_state: typing.Dict) -> typing.Dict:
 
-    is_move_safe = {"up": True, "down": True, "left": True, "right": True}
+    # is_move_safe = {"up": True, "down": True, "left": True, "right": True}
 
 
-    # We've included code to prevent your Battlesnake from moving backwards
-    my_head = game_state["you"]["body"][0]  # Coordinates of your head
-    my_neck = game_state["you"]["body"][1]  # Coordinates of your "neck"
+    # # We've included code to prevent your Battlesnake from moving backwards
+    # my_head = game_state["you"]["body"][0]  # Coordinates of your head
+    # my_neck = game_state["you"]["body"][1]  # Coordinates of your "neck"
 
-    if my_neck["x"] < my_head["x"]:   # Neck is left of head, don't move left
-        is_move_safe["left"] = False
+    # if my_neck["x"] < my_head["x"]:   # Neck is left of head, don't move left
+    #     is_move_safe["left"] = False
 
-    elif my_neck["x"] > my_head["x"]:  # Neck is right of head, don't move right
-        is_move_safe["right"] = False
+    # elif my_neck["x"] > my_head["x"]:  # Neck is right of head, don't move right
+    #     is_move_safe["right"] = False
 
-    elif my_neck["y"] < my_head["y"]:  # Neck is below head, don't move down
-        is_move_safe["down"] = False
+    # elif my_neck["y"] < my_head["y"]:  # Neck is below head, don't move down
+    #     is_move_safe["down"] = False
 
-    elif my_neck["y"] > my_head["y"]:  # Neck is above head, don't move up
-        is_move_safe["up"] = False
+    # elif my_neck["y"] > my_head["y"]:  # Neck is above head, don't move up
+    #     is_move_safe["up"] = False
 
-    # TODO: Step 1 - Prevent your Battlesnake from moving out of bounds
-    board_width = game_state['board']['width']
-    board_height = game_state['board']['height']
-
-    
-    if my_head["x"] == 0:
-        is_move_safe["left"] = False
-
-    if my_head["x"] == board_width - 1:
-        is_move_safe["right"] = False
-    
-    if my_head["y"] == 0:
-        is_move_safe["down"] = False
-
-    if my_head["y"] == board_height - 1:
-        is_move_safe["up"] = False
-
-
-
-
-    # TODO: Step 2 - Prevent your Battlesnake from colliding with itself
-
-    my_body = game_state['you']['body']
-
-    next_right = {"x": my_head["x"]+1,"y": my_head["y"]}
-    next_left =  {"x": my_head["x"]-1,"y": my_head["y"]}
-
-
-    next_down =  {"x": my_head["x"],"y": my_head["y"]-1}
-    next_up =    {"x": my_head["x"],"y": my_head["y"]+1}
-
-
-    if next_right in my_body:
-        is_move_safe["right"] = False
+    # # TODO: Step 1 - Prevent your Battlesnake from moving out of bounds
+    # board_width = game_state['board']['width']
+    # board_height = game_state['board']['height']
 
     
-    if next_left in my_body:
-        is_move_safe["left"] = False
+    # if my_head["x"] == 0:
+    #     is_move_safe["left"] = False
 
-    if next_down in my_body:
-        is_move_safe["down"] = False
+    # if my_head["x"] == board_width - 1:
+    #     is_move_safe["right"] = False
+    
+    # if my_head["y"] == 0:
+    #     is_move_safe["down"] = False
 
-    if next_up in my_body:
-        is_move_safe["up"]  = False
+    # if my_head["y"] == board_height - 1:
+    #     is_move_safe["up"] = False
+
+
+
+
+    # # TODO: Step 2 - Prevent your Battlesnake from colliding with itself
+
+    # my_body = game_state['you']['body']
+
+    # next_right = {"x": my_head["x"]+1,"y": my_head["y"]}
+    # next_left =  {"x": my_head["x"]-1,"y": my_head["y"]}
+
+
+    # next_down =  {"x": my_head["x"],"y": my_head["y"]-1}
+    # next_up =    {"x": my_head["x"],"y": my_head["y"]+1}
+
+
+    # if next_right in my_body:
+    #     is_move_safe["right"] = False
+
+    
+    # if next_left in my_body:
+    #     is_move_safe["left"] = False
+
+    # if next_down in my_body:
+    #     is_move_safe["down"] = False
+
+    # if next_up in my_body:
+    #     is_move_safe["up"]  = False
 
     
 
-    # TODO: Step 3 - Prevent your Battlesnake from colliding with other Battlesnakes
-    opponents = game_state['board']['snakes']
+    # # TODO: Step 3 - Prevent your Battlesnake from colliding with other Battlesnakes
+    # opponents = game_state['board']['snakes']
     
 
-    for opponent in opponents:
-        opponent_body = opponent["body"]
+    # for opponent in opponents:
+    #     opponent_body = opponent["body"]
 
-        if next_right in opponent_body:
-            is_move_safe["right"] = False
+    #     if next_right in opponent_body:
+    #         is_move_safe["right"] = False
         
-        if next_left in opponent_body:
-            is_move_safe["left"] = False
+    #     if next_left in opponent_body:
+    #         is_move_safe["left"] = False
 
-        if next_down in opponent_body:
-            is_move_safe["down"] = False
+    #     if next_down in opponent_body:
+    #         is_move_safe["down"] = False
 
-        if next_up in opponent_body:
-            is_move_safe["up"]  = False
+    #     if next_up in opponent_body:
+    #         is_move_safe["up"]  = False
 
 
     
-    # Are there any safe moves left?
-    safe_moves = []
-    for move, isSafe in is_move_safe.items():
-        if isSafe:
-            safe_moves.append(move)
+    # # Are there any safe moves left?
+    # safe_moves = []
+    # for move, isSafe in is_move_safe.items():
+    #     if isSafe:
+    #         safe_moves.append(move)
+
+    safe_moves = get_legal_moves(game_state, game_state["you"])
 
     if len(safe_moves) == 0:
         print(f"MOVE {game_state['turn']}: No safe moves detected! Moving down")
