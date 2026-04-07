@@ -29,12 +29,15 @@ class Node:
         
         self.untried_moves = get_legal_moves(game_state, game_state["you"])
 
+        self.rave_visits = {m: 0 for m in ["up","down","left","right"]}
+        self.rave_value  = {m: 0.0 for m in ["up","down","left","right"]}
+
 
     def is_fully_expanded(self):
         return len(self.untried_moves) == 0
     
 
-    def best_child(self, exploration_weight=1.41):
+    def best_child(self, rave=False, k=600, exploration_weight=1.41):
 
         best_score = -float('inf')
         best_node = None
@@ -43,14 +46,24 @@ class Node:
 
             if child.visits == 0:
                 return child
-                
-            exploit = child.value / child.visits
-
-            explore = exploration_weight * math.sqrt(math.log(self.visits) / child.visits)
-            ucb1_score = exploit + explore
             
-            if ucb1_score > best_score:
-                best_score = ucb1_score
+            if rave: 
+                q_mcts = child.value / child.visits
+                if self.rave_visits[child.move] > 0:
+                    q_rave = self.rave_value[child.move] / self.rave_visits[child.move]
+                else:
+                    q_rave = 0.0
+                beta = k / (k + child.visits)
+                combined = (1 - beta) * q_mcts + beta * q_rave
+            
+            else:
+                combined = child.value / child.visits
+
+            explore = exploration_weight * math.sqrt(math.log(self.visits + 1) / child.visits)
+            score = combined + explore
+            
+            if score > best_score:
+                best_score = score
 
                 best_node = child
                 
@@ -254,7 +267,7 @@ def simulate_next_state(current_state: dict, move: str) -> dict:
 
                             # MCTS loop
 
-def get_mcts_move(game_state: dict, timeout_ms: float = 750.0) -> str:
+def get_mcts_move(game_state: dict, rave, k, timeout_ms: float = 750.0) -> str:
     start_time = time.time() * 1000.0
     root_node = Node(game_state=game_state)
     simulations_run = 0
@@ -265,34 +278,48 @@ def get_mcts_move(game_state: dict, timeout_ms: float = 750.0) -> str:
         
            #  selection
         current_node = root_node
+        simulation_moves = []
+
+        # Selection
         while current_node.is_fully_expanded() and len(current_node.children) > 0:
-            current_node = current_node.best_child()
-        
+            current_node = current_node.best_child(rave=rave, k=k)
+            if current_node.move is not None:
+                simulation_moves.append(current_node.move)
+
         # Expansion
         if not current_node.is_fully_expanded():
             
-            move_index = random.randrange(len(current_node.untried_moves))
-            move_to_try = current_node.untried_moves.pop(move_index)
+            scored_moves = []
+
+            for i, move in enumerate(current_node.untried_moves):
+                next_state = simulate_next_state(current_node.state, move)
+                score = evaluate_board(next_state)
+                scored_moves.append((score, i))
+
+            scored_moves.sort(reverse=True)
+
+            top_k = scored_moves[:2]
+            _, best_idx = random.choice(top_k)
+
+            move_to_try = current_node.untried_moves.pop(best_idx)
 
             new_state = simulate_next_state(current_node.state, move_to_try)
 
-            child_node = Node(game_state = new_state, parent= current_node, move = move_to_try)
+            child_node = Node(game_state=new_state, parent=current_node, move=move_to_try)
             current_node.children.append(child_node)
             current_node = child_node
+            simulation_moves.append(move_to_try)
 
-                    # Simulation
-    
-    
+        # Rollout
         rollout_state = current_node.state
-
         rollout_d = 10
 
         for _ in range(rollout_d):
             my_snake = rollout_state.get("you")
 
-            if my_snake is None or my_snake.get("health",0) <=0:
+            if my_snake is None or my_snake.get("health", 0) <= 0:
                 break
-            
+
             legal_moves = get_legal_moves(rollout_state, rollout_state["you"])
             if not legal_moves:
                 break
@@ -307,17 +334,23 @@ def get_mcts_move(game_state: dict, timeout_ms: float = 750.0) -> str:
                     best_rollout_score = score
                     best_rollout_move = move
 
+            simulation_moves.append(best_rollout_move)
             rollout_state = simulate_next_state(rollout_state, best_rollout_move)
 
         final_score = evaluate_board(rollout_state)
 
-        
-        
-           #Backpropagation
-        while current_node is not None:
+        # Backpropagation
+        unique_moves = set(simulation_moves)
 
-            current_node.visits +=1
+        while current_node is not None:
+            current_node.visits += 1
             current_node.value += final_score
+
+            if rave:
+                for move in unique_moves:
+                    current_node.rave_visits[move] += 1
+                    current_node.rave_value[move] += final_score
+
             current_node = current_node.parent
             
 
@@ -494,98 +527,8 @@ def get_legal_moves(game_state: dict, snake: dict) -> list[str]:
 
 def move(game_state: typing.Dict) -> typing.Dict:
 
-    # is_move_safe = {"up": True, "down": True, "left": True, "right": True}
-
-
-    # # We've included code to prevent your Battlesnake from moving backwards
-    # my_head = game_state["you"]["body"][0]  # Coordinates of your head
-    # my_neck = game_state["you"]["body"][1]  # Coordinates of your "neck"
-
-    # if my_neck["x"] < my_head["x"]:   # Neck is left of head, don't move left
-    #     is_move_safe["left"] = False
-
-    # elif my_neck["x"] > my_head["x"]:  # Neck is right of head, don't move right
-    #     is_move_safe["right"] = False
-
-    # elif my_neck["y"] < my_head["y"]:  # Neck is below head, don't move down
-    #     is_move_safe["down"] = False
-
-    # elif my_neck["y"] > my_head["y"]:  # Neck is above head, don't move up
-    #     is_move_safe["up"] = False
-
-    # # TODO: Step 1 - Prevent your Battlesnake from moving out of bounds
-    # board_width = game_state['board']['width']
-    # board_height = game_state['board']['height']
-
-    
-    # if my_head["x"] == 0:
-    #     is_move_safe["left"] = False
-
-    # if my_head["x"] == board_width - 1:
-    #     is_move_safe["right"] = False
-    
-    # if my_head["y"] == 0:
-    #     is_move_safe["down"] = False
-
-    # if my_head["y"] == board_height - 1:
-    #     is_move_safe["up"] = False
-
-
-
-
-    # # TODO: Step 2 - Prevent your Battlesnake from colliding with itself
-
-    # my_body = game_state['you']['body']
-
-    # next_right = {"x": my_head["x"]+1,"y": my_head["y"]}
-    # next_left =  {"x": my_head["x"]-1,"y": my_head["y"]}
-
-
-    # next_down =  {"x": my_head["x"],"y": my_head["y"]-1}
-    # next_up =    {"x": my_head["x"],"y": my_head["y"]+1}
-
-
-    # if next_right in my_body:
-    #     is_move_safe["right"] = False
-
-    
-    # if next_left in my_body:
-    #     is_move_safe["left"] = False
-
-    # if next_down in my_body:
-    #     is_move_safe["down"] = False
-
-    # if next_up in my_body:
-    #     is_move_safe["up"]  = False
-
-    
-
-    # # TODO: Step 3 - Prevent your Battlesnake from colliding with other Battlesnakes
-    # opponents = game_state['board']['snakes']
-    
-
-    # for opponent in opponents:
-    #     opponent_body = opponent["body"]
-
-    #     if next_right in opponent_body:
-    #         is_move_safe["right"] = False
-        
-    #     if next_left in opponent_body:
-    #         is_move_safe["left"] = False
-
-    #     if next_down in opponent_body:
-    #         is_move_safe["down"] = False
-
-    #     if next_up in opponent_body:
-    #         is_move_safe["up"]  = False
-
-
-    
-    # # Are there any safe moves left?
-    # safe_moves = []
-    # for move, isSafe in is_move_safe.items():
-    #     if isSafe:
-    #         safe_moves.append(move)
+    rave=True
+    k=600
 
     safe_moves = get_legal_moves(game_state, game_state["you"])
 
@@ -596,7 +539,7 @@ def move(game_state: typing.Dict) -> typing.Dict:
     # TODO: Step 4 - Use MCTS 
     
     
-    next_move = get_mcts_move(game_state, timeout_ms=700.0)  #  MCTS with 700ms to act
+    next_move = get_mcts_move(game_state, rave=rave, k=k, timeout_ms=700.0)  #  MCTS with 700ms to act
     
 
     
