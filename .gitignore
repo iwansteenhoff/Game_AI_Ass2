@@ -11,3 +11,6 @@ game.json
 
 # Downloads / binaries
 *.tar.gz
+
+# results
+tournament_results/
