@@ -722,132 +722,183 @@ def make_mcts_agent(
 # ============================================================
 
 def main():
-    seeds = list(range(1,21)) # 20 seeds -> 40 games per pair with swaps
+    seeds = list(range(1,11)) # 20 seeds -> 40 games per pair with swaps
 
     # ------------------------------
     # Experiment 1: rollout policy
     # ------------------------------
-    mcts_random = make_mcts_agent(
-        name="MCTS_random",
-        port=8000,
-        rave=False,
-        k=600,
-        rollout_depth=10,
-        rollout_policy="random",
-        expansion_policy="random",
-        exploration_weight=1.41,
-        timeout_ms=700,
-    )
+    # mcts_random = make_mcts_agent(
+    #     name="MCTS_random",
+    #     port=8000,
+    #     rave=False,
+    #     k=600,
+    #     rollout_depth=10,
+    #     rollout_policy="random",
+    #     expansion_policy="random",
+    #     exploration_weight=1.41,
+    #     timeout_ms=700,
+    # )
 
-    mcts_heuristic = make_mcts_agent(
-        name="MCTS_heuristic",
-        port=8001,
-        rave=False,
-        k=600,
-        rollout_depth=10,
-        rollout_policy="heuristic",
-        expansion_policy="random",
-        exploration_weight=1.41,
-        timeout_ms=700,
-    )
+    # mcts_heuristic = make_mcts_agent(
+    #     name="MCTS_heuristic",
+    #     port=8001,
+    #     rave=False,
+    #     k=600,
+    #     rollout_depth=10,
+    #     rollout_policy="heuristic",
+    #     expansion_policy="random",
+    #     exploration_weight=1.41,
+    #     timeout_ms=700,
+    # )
 
-    run_pairwise_experiment(
-        experiment_name="exp1_rollout_random_vs_heuristic",
-        agent_a=mcts_random,
-        agent_b=mcts_heuristic,
-        seeds=seeds,
-    )
+    # run_pairwise_experiment(
+    #     experiment_name="exp1_rollout_random_vs_heuristic",
+    #     agent_a=mcts_random,
+    #     agent_b=mcts_heuristic,
+    #     seeds=seeds,
+    # )
 
-    return
 
     # ------------------------------
     # Experiment 2: RAVE
     # ------------------------------
-    mcts_heuristic_no_rave = make_mcts_agent(
-        name="MCTS_noRAVE",
-        port=8000,
-        rave=False,
-        k=600,
-        rollout_depth=10,
-        rollout_policy="heuristic",
-        expansion_policy="random",
-        exploration_weight=1.41,
-        timeout_ms=700,
-    )
+    # mcts_heuristic_no_rave = make_mcts_agent(
+    #     name="MCTS_noRAVE",
+    #     port=8000,
+    #     rave=False,
+    #     k=600,
+    #     rollout_depth=10,
+    #     rollout_policy="heuristic",
+    #     expansion_policy="random",
+    #     exploration_weight=1.41,
+    #     timeout_ms=700,
+    # )
 
-    mcts_heuristic_rave = make_mcts_agent(
-        name="MCTS_RAVE",
-        port=8001,
-        rave=True,
-        k=600,
-        rollout_depth=10,
-        rollout_policy="heuristic",
-        expansion_policy="random",
-        exploration_weight=1.41,
-        timeout_ms=700,
-    )
+    # mcts_heuristic_rave = make_mcts_agent(
+    #     name="MCTS_RAVE",
+    #     port=8001,
+    #     rave=True,
+    #     k=600,
+    #     rollout_depth=10,
+    #     rollout_policy="heuristic",
+    #     expansion_policy="random",
+    #     exploration_weight=1.41,
+    #     timeout_ms=700,
+    # )
 
-    run_pairwise_experiment(
-        experiment_name="exp2_rave_off_vs_on",
-        agent_a=mcts_heuristic_no_rave,
-        agent_b=mcts_heuristic_rave,
-        seeds=seeds,
-    )
+    # run_pairwise_experiment(
+    #     experiment_name="exp2_rave_off_vs_on",
+    #     agent_a=mcts_heuristic_no_rave,
+    #     agent_b=mcts_heuristic_rave,
+    #     seeds=seeds,
+    # )
 
     # ------------------------------
     # Experiment 3: expansion policy
     # ------------------------------
-    mcts_rave_randomexp = make_mcts_agent(
-        name="MCTS_RAVE_randExp",
-        port=8000,
-        rave=True,
-        k=600,
-        rollout_depth=10,
-        rollout_policy="heuristic",
-        expansion_policy="random",
-        exploration_weight=1.41,
-        timeout_ms=700,
-    )
+    # mcts_rave_randomexp = make_mcts_agent(
+    #     name="MCTS_RAVE_randExp",
+    #     port=8000,
+    #     rave=True,
+    #     k=600,
+    #     rollout_depth=10,
+    #     rollout_policy="heuristic",
+    #     expansion_policy="random",
+    #     exploration_weight=1.41,
+    #     timeout_ms=700,
+    # )
 
-    mcts_rave_heurexp = make_mcts_agent(
-        name="MCTS_RAVE_heurExp",
-        port=8001,
-        rave=True,
-        k=600,
-        rollout_depth=10,
-        rollout_policy="heuristic",
-        expansion_policy="heuristic",
-        exploration_weight=1.41,
-        timeout_ms=700,
-    )
+    # mcts_rave_heurexp = make_mcts_agent(
+    #     name="MCTS_RAVE_heurExp",
+    #     port=8001,
+    #     rave=True,
+    #     k=600,
+    #     rollout_depth=10,
+    #     rollout_policy="heuristic",
+    #     expansion_policy="heuristic",
+    #     exploration_weight=1.41,
+    #     timeout_ms=700,
+    # )
 
-    run_pairwise_experiment(
-        experiment_name="exp3_expansion_random_vs_heuristic",
-        agent_a=mcts_rave_randomexp,
-        agent_b=mcts_rave_heurexp,
-        seeds=seeds,
-    )
+    # run_pairwise_experiment(
+    #     experiment_name="exp3_expansion_random_vs_heuristic",
+    #     agent_a=mcts_rave_randomexp,
+    #     agent_b=mcts_rave_heurexp,
+    #     seeds=seeds,
+    # )
 
     # ------------------------------
-    # Experiment 4: hyperparameter example
+    # Experiment 4: hyperparameter tests
     # ------------------------------
     heuristic_baseline = make_heuristic_agent("Heuristic", 8001)
 
-    for rollout_depth in [5, 10, 20]:
+    # Default full MCTS settings used as reference
+    default_rave = True
+    default_k = 600
+    default_rollout_policy = "heuristic"
+    default_expansion_policy = "heuristic"
+    default_exploration_weight = 1.41
+    default_rollout_depth = 10
+    default_timeout_ms = 700
+
+    # 4A. Exploration constant
+    for exploration_weight in [0.7, 1.41]:
         tested_agent = make_mcts_agent(
-            name=f"MCTS_full_d{rollout_depth}",
+            name=f"MCTS_full_c{str(exploration_weight).replace('.', '_')}",
             port=8000,
-            rave=True,
-            k=600,
-            rollout_depth=rollout_depth,
-            rollout_policy="heuristic",
-            expansion_policy="heuristic",
-            exploration_weight=1.41,
-            timeout_ms=700,
+            rave=default_rave,
+            k=default_k,
+            rollout_depth=default_rollout_depth,
+            rollout_policy=default_rollout_policy,
+            expansion_policy=default_expansion_policy,
+            exploration_weight=exploration_weight,
+            timeout_ms=default_timeout_ms,
         )
 
         run_pairwise_experiment(
-            experiment_name=f"exp4_rollout_depth_{rollout_depth}_vs_heuristic",
+            experiment_name=f"exp4a_exploration_constant_{str(exploration_weight).replace('.', '_')}_vs_heuristic",
+            agent_a=tested_agent,
+            agent_b=heuristic_baseline,
+            seeds=seeds,
+        )
+
+    # 4B. Rollout depth
+    for rollout_depth in [5, 15]:
+        tested_agent = make_mcts_agent(
+            name=f"MCTS_full_d{rollout_depth}",
+            port=8000,
+            rave=default_rave,
+            k=default_k,
+            rollout_depth=rollout_depth,
+            rollout_policy=default_rollout_policy,
+            expansion_policy=default_expansion_policy,
+            exploration_weight=default_exploration_weight,
+            timeout_ms=default_timeout_ms,
+        )
+
+        run_pairwise_experiment(
+            experiment_name=f"exp4b_rollout_depth_{rollout_depth}_vs_heuristic",
+            agent_a=tested_agent,
+            agent_b=heuristic_baseline,
+            seeds=seeds,
+        )
+
+    # 4C. Timeout budget
+    for timeout_ms in [700, 995]:
+        tested_agent = make_mcts_agent(
+            name=f"MCTS_full_t{timeout_ms}",
+            port=8000,
+            rave=default_rave,
+            k=default_k,
+            rollout_depth=default_rollout_depth,
+            rollout_policy=default_rollout_policy,
+            expansion_policy=default_expansion_policy,
+            exploration_weight=default_exploration_weight,
+            timeout_ms=timeout_ms,
+        )
+
+        run_pairwise_experiment(
+            experiment_name=f"exp4c_timeout_{timeout_ms}_vs_heuristic",
             agent_a=tested_agent,
             agent_b=heuristic_baseline,
             seeds=seeds,
