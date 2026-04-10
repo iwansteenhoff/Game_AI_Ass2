@@ -12,11 +12,12 @@ from pathlib import Path
 from typing import List, Optional
 
 
-# ============================================================
-# Config
-# ============================================================
 
-BATTLESNAKE_CMD = "battlesnake"
+
+
+
+
+BATTLESNAKE_CMD = "battlesnake"        # Config
 DEFAULT_WIDTH = 11
 DEFAULT_HEIGHT = 11
 DEFAULT_GAMEMODE = "standard"
@@ -32,9 +33,8 @@ SERVER_START_WAIT = 2.0
 SERVER_STOP_WAIT = 1.0
 
 
-# ============================================================
-# Agent definitions
-# ============================================================
+
+        #Agent definitions
 
 @dataclass
 class AgentConfig:
@@ -71,10 +71,8 @@ class AgentConfig:
         return cmd
 
 
-# ============================================================
-# Utility
-# ============================================================
 
+          #utility
 def safe_name(name: str) -> str:
     return "".join(c if c.isalnum() or c in "-_." else "_" for c in name)
 
@@ -203,6 +201,8 @@ def parse_match_statistics(log_path: Path, agent_a_name: str, agent_b_name: str)
             except json.JSONDecodeError:
                 continue
 
+
+            
             if isinstance(obj, dict) and "turn" in obj and "board" in obj:
                 turn_states.append(obj)
 
@@ -210,6 +210,7 @@ def parse_match_statistics(log_path: Path, agent_a_name: str, agent_b_name: str)
                 winner_name = obj.get("winnerName")
                 is_draw = obj.get("isDraw")
 
+    
     if not turn_states:
         return {
             "winner_from_log": winner_name,
@@ -303,14 +304,14 @@ def parse_match_statistics(log_path: Path, agent_a_name: str, agent_b_name: str)
                 stats[agent_name]["food_eaten"] += curr_length - prev_length
             prev_length = curr_length
 
-    # Averages
+         # Averages
     for agent_name in [agent_a_name, agent_b_name]:
         if health_history[agent_name]:
             stats[agent_name]["avg_health"] = sum(health_history[agent_name]) / len(health_history[agent_name])
         if latency_history[agent_name]:
             stats[agent_name]["avg_latency"] = sum(latency_history[agent_name]) / len(latency_history[agent_name])
 
-    # Final alive
+     #final alive
     last_turn_state = turn_states[-1]
     final_alive_names = {snake["name"] for snake in last_turn_state["board"]["snakes"]}
     stats[agent_a_name]["alive_final"] = int(agent_a_name in final_alive_names)
@@ -321,7 +322,7 @@ def parse_match_statistics(log_path: Path, agent_a_name: str, agent_b_name: str)
         if agent_name in final_alive_names:
             return "alive"
 
-        # Find last turn where the snake was still present
+           # Find last turn where the snake was still present
         last_seen_turn = None
         last_seen_snake = None
         next_turn_state = None
@@ -343,7 +344,7 @@ def parse_match_statistics(log_path: Path, agent_a_name: str, agent_b_name: str)
         health = last_seen_snake.get("health", 0)
         hazards = board.get("hazards", [])
 
-        # Heuristic death inference
+           # Heuristic death inference
         if health <= 1:
             return "starvation"
 
@@ -363,7 +364,7 @@ def parse_match_statistics(log_path: Path, agent_a_name: str, agent_b_name: str)
             for snake in next_snakes:
                 next_heads.setdefault((snake["head"]["x"], snake["head"]["y"]), []).append(snake)
 
-            # if agent disappeared and other heads collided, call it head_to_head if plausible
+               # if agent disappeared and other heads collided, call it head_to_head if plausible
             for heads_same_square in next_heads.values():
                 if len(heads_same_square) > 1:
                     return "head_to_head"
@@ -434,10 +435,8 @@ def extract_1v1_result(last_state: dict, agent_a_name: str, agent_b_name: str):
     }
 
 
-# ============================================================
-# Match runner
-# ============================================================
 
+      # Match runner
 def build_battlesnake_play_cmd(
     agents: List[AgentConfig],
     output_path: Path,
@@ -562,9 +561,8 @@ def run_match_1v1(
         stop_agents(procs)
 
 
-# ============================================================
-# CSV helpers
-# ============================================================
+
+    # CSV helpers
 
 def write_rows_to_csv(rows: List[dict], csv_path: Path) -> None:
     if not rows:
@@ -577,9 +575,10 @@ def write_rows_to_csv(rows: List[dict], csv_path: Path) -> None:
         writer.writerows(rows)
 
 
-# ============================================================
+
+
+
 # Elo
-# ============================================================
 
 def expected_score(r_a: float, r_b: float) -> float:
     return 1.0 / (1.0 + 10 ** ((r_b - r_a) / 400.0))
@@ -619,10 +618,8 @@ def compute_elo(rows: List[dict], k_factor: float = 32.0) -> dict:
     return ratings
 
 
-# ============================================================
-# Experiments
-# ============================================================
 
+    # Experiments
 def run_pairwise_experiment(
     experiment_name: str,
     agent_a: AgentConfig,
@@ -678,11 +675,9 @@ def run_round_robin_experiment(
     return csv_path
 
 
-# ============================================================
-# Example agent builders
-# ============================================================
 
-def make_heuristic_agent(name: str, port: int) -> AgentConfig:
+
+def make_heuristic_agent(name: str, port: int) -> AgentConfig:   #example agent builders
     return AgentConfig(
         name=name,
         script="agent_heuristic.py",
@@ -717,16 +712,14 @@ def make_mcts_agent(
     )
 
 
-# ============================================================
-# Main: define your experiments here
-# ============================================================
 
+      # Main (define experiments)
 def main():
     seeds = list(range(1,11)) # 20 seeds -> 40 games per pair with swaps
 
-    # ------------------------------
-    # Experiment 1: rollout policy
-    # ------------------------------
+   
+        # Experiment 1: rollout policy
+   
     # mcts_random = make_mcts_agent(
     #     name="MCTS_random",
     #     port=8000,
@@ -759,9 +752,9 @@ def main():
     # )
 
 
-    # ------------------------------
-    # Experiment 2: RAVE
-    # ------------------------------
+    
+          #experiment 2: RAVE
+    
     # mcts_heuristic_no_rave = make_mcts_agent(
     #     name="MCTS_noRAVE",
     #     port=8000,
@@ -793,9 +786,9 @@ def main():
     #     seeds=seeds,
     # )
 
-    # ------------------------------
-    # Experiment 3: expansion policy
-    # ------------------------------
+    
+         # Experiment 3: expansion policy
+    
     # mcts_rave_randomexp = make_mcts_agent(
     #     name="MCTS_RAVE_randExp",
     #     port=8000,
@@ -808,6 +801,7 @@ def main():
     #     timeout_ms=700,
     # )
 
+    
     # mcts_rave_heurexp = make_mcts_agent(
     #     name="MCTS_RAVE_heurExp",
     #     port=8001,
@@ -827,9 +821,9 @@ def main():
     #     seeds=seeds,
     # )
 
-    # ------------------------------
-    # Experiment 4: hyperparameter tests
-    # ------------------------------
+    
+          # Experiment 4: hyperparameter tests
+    
     heuristic_baseline = make_heuristic_agent("Heuristic", 8001)
 
     # Default full MCTS settings used as reference
@@ -841,7 +835,7 @@ def main():
     default_rollout_depth = 10
     default_timeout_ms = 700
 
-    # 4A. Exploration constant
+             # 4A Exploration constant
     for exploration_weight in [0.7, 1.41]:
         tested_agent = make_mcts_agent(
             name=f"MCTS_full_c{str(exploration_weight).replace('.', '_')}",
@@ -862,7 +856,7 @@ def main():
             seeds=seeds,
         )
 
-    # 4B. Rollout depth
+             #    4B rollout depth
     for rollout_depth in [5, 15]:
         tested_agent = make_mcts_agent(
             name=f"MCTS_full_d{rollout_depth}",
@@ -883,7 +877,7 @@ def main():
             seeds=seeds,
         )
 
-    # 4C. Timeout budget
+            # 4C. Timeout budget
     for timeout_ms in [700, 995]:
         tested_agent = make_mcts_agent(
             name=f"MCTS_full_t{timeout_ms}",
@@ -904,9 +898,8 @@ def main():
             seeds=seeds,
         )
 
-    # ------------------------------
-    # Final round robin
-    # ------------------------------
+    
+       # Final round robin
     agents = [
         make_heuristic_agent("Heuristic", 8000),
         make_mcts_agent("MCTS_random", 8001, False, 600, 10, "random", "random", 1.41, 700),
