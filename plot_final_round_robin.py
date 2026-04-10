@@ -159,7 +159,7 @@ def plot_summary(summary_df: pd.DataFrame, out_path: Path, title: str):
 
     fig, axes = plt.subplots(2, 2, figsize=(16, 11))
 
-    # 1. Win rate
+          #  Win rate
     ax = axes[0, 0]
     bars = ax.bar(agents, summary_df["win_rate"] * 100)
     ax.set_title("Win rate")
@@ -168,7 +168,7 @@ def plot_summary(summary_df: pd.DataFrame, out_path: Path, title: str):
     add_value_labels(ax, bars, fmt="{:.1f}")
     ax.tick_params(axis="x", rotation=20)
 
-    # 2. ELO
+    # ELO
     ax = axes[0, 1]
     bars = ax.bar(agents, summary_df["elo"])
     ax.set_title("ELO")
@@ -176,7 +176,7 @@ def plot_summary(summary_df: pd.DataFrame, out_path: Path, title: str):
     add_value_labels(ax, bars, fmt="{:.1f}")
     ax.tick_params(axis="x", rotation=20)
 
-    # 3. Survival and final length
+        # Survival and final length
     ax = axes[1, 0]
     width = 0.35
     bars1 = ax.bar(
@@ -198,7 +198,8 @@ def plot_summary(summary_df: pd.DataFrame, out_path: Path, title: str):
     add_value_labels(ax, bars1, fmt="{:.1f}")
     add_value_labels(ax, bars2, fmt="{:.1f}")
 
-    # 4. Food and hazard exposure
+    # Food and hazard exposure
+    
     ax = axes[1, 1]
     bars1 = ax.bar(
         [i - width / 2 for i in xpos],
