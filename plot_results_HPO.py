@@ -8,7 +8,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-# ---------------- GLOBAL STYLE ----------------
+
 plt.rcParams.update({
     "font.size": 30,
     "axes.titlesize": 20,
@@ -195,6 +195,8 @@ def plot_summary(summary_df: pd.DataFrame, out_path: Path, title: str):
     add_value_labels(ax, bars1, fmt="{:.1f}")
     add_value_labels(ax, bars2, fmt="{:.1f}")
 
+
+    
     # Food & hazard
     ax = axes[1, 1]
     bars1 = ax.bar([i - width / 2 for i in xpos], summary_df["avg_food_eaten"], width=width, label="Food")
